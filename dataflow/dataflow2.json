@@ -1,0 +1,192 @@
+{
+	"name": "dataflow2",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "Customers"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "select1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "lookup1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "alterRow1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          Customer_id as short,",
+				"          First_name as string,",
+				"          Last_name as string,",
+				"          Address as string,",
+				"          City as string,",
+				"          State as string,",
+				"          Zip as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Customers') ~> Customers",
+				"source(output(",
+				"          customer_id as integer,",
+				"          hashkey as long",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'query',",
+				"     store: 'sqlserver',",
+				"     query: 'SELECT customer_id, hashkey FROM dbo.customers',",
+				"     isolationLevel: 'READ_UNCOMMITTED') ~> source1",
+				"Customers select(mapColumn(",
+				"          each(match(1==1),",
+				"               concat('src_',$$) = $$)",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 derive(src_HashKey = crc32(uuid())) ~> derivedColumn1",
+				"lookup1 split(isNull(customer_id),",
+				"     src_Customer_id==customer_id&&src_HashKey!=hashkey,",
+				"     disjoint: false) ~> split1@(insert, update)",
+				"derivedColumn1, source1 lookup(src_Customer_id == customer_id,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> lookup1",
+				"split1@insert derive(src_createdby = 'dataflow',",
+				"          src_createddate = currentTimestamp(),",
+				"          src_updatedate = currentTimestamp(),",
+				"          src_updatedby = 'dataflow') ~> derivedColumn2",
+				"split1@update derive(src_updatedby = 'dataflow-update',",
+				"          src_updatedate = currentTimestamp()) ~> derivedColumn3",
+				"derivedColumn3 alterRow(updateIf(1==1)) ~> alterRow1",
+				"derivedColumn2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          customer_id as integer,",
+				"          first_name as string,",
+				"          last_name as string,",
+				"          address as string,",
+				"          city as string,",
+				"          state as string,",
+				"          zip as string,",
+				"          updatedby as string,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          hashkey as long",
+				"     ),",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'dbo',",
+				"     tableName: 'customers',",
+				"     insertable: true,",
+				"     updateable: false,",
+				"     deletable: false,",
+				"     upsertable: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          customer_id = src_Customer_id,",
+				"          first_name = src_First_name,",
+				"          last_name = src_Last_name,",
+				"          address = src_Address,",
+				"          city = src_City,",
+				"          state = src_State,",
+				"          zip = src_Zip,",
+				"          hashkey = src_HashKey,",
+				"          createdby = src_createdby,",
+				"          createdate = src_createddate,",
+				"          updatedate = src_updatedate,",
+				"          updatedby = src_updatedby",
+				"     )) ~> sink1",
+				"alterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          customer_id as integer,",
+				"          first_name as string,",
+				"          last_name as string,",
+				"          address as string,",
+				"          city as string,",
+				"          state as string,",
+				"          zip as string,",
+				"          updatedby as string,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          hashkey as long",
+				"     ),",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'dbo',",
+				"     tableName: 'customers',",
+				"     insertable: false,",
+				"     updateable: true,",
+				"     deletable: false,",
+				"     upsertable: false,",
+				"     keys:['customer_id'],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          customer_id = src_Customer_id,",
+				"          first_name = src_First_name,",
+				"          last_name = src_Last_name,",
+				"          address = src_Address,",
+				"          city = src_City,",
+				"          state = src_State,",
+				"          zip = src_Zip,",
+				"          hashkey = src_HashKey,",
+				"          updatedby = src_updatedby,",
+				"          updatedate = src_updatedate",
+				"     )) ~> sink2"
+			]
+		}
+	}
+}

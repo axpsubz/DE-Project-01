@@ -1,0 +1,393 @@
+{
+	"name": "df_cleanig",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "accountCSV",
+						"type": "DatasetReference"
+					},
+					"name": "accountsCSV"
+				},
+				{
+					"dataset": {
+						"referenceName": "customersCSV",
+						"type": "DatasetReference"
+					},
+					"name": "customersCSV"
+				},
+				{
+					"dataset": {
+						"referenceName": "loanpaymentsCSV",
+						"type": "DatasetReference"
+					},
+					"name": "loanpaymentCSV"
+				},
+				{
+					"dataset": {
+						"referenceName": "loansCSV",
+						"type": "DatasetReference"
+					},
+					"name": "loansCSV"
+				},
+				{
+					"dataset": {
+						"referenceName": "transactionsCSV",
+						"type": "DatasetReference"
+					},
+					"name": "transactionsCSV"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink1",
+					"rejectedDataLinkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					}
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink2"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink3",
+					"rejectedDataLinkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					}
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink4",
+					"rejectedDataLinkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					}
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink5",
+					"rejectedDataLinkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					}
+				}
+			],
+			"transformations": [
+				{
+					"name": "removenull"
+				},
+				{
+					"name": "removeduplicates"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "removenull2"
+				},
+				{
+					"name": "removeDuplicates2"
+				},
+				{
+					"name": "select2"
+				},
+				{
+					"name": "removeNull3"
+				},
+				{
+					"name": "removeDuplicates3"
+				},
+				{
+					"name": "select3"
+				},
+				{
+					"name": "removeNull4"
+				},
+				{
+					"name": "removeDuplicates4"
+				},
+				{
+					"name": "select4"
+				},
+				{
+					"name": "removeNull5"
+				},
+				{
+					"name": "removeDuplicates5"
+				},
+				{
+					"name": "select5"
+				},
+				{
+					"name": "alterRow1"
+				},
+				{
+					"name": "alterRow2"
+				},
+				{
+					"name": "alterRow3"
+				},
+				{
+					"name": "alterRow4"
+				},
+				{
+					"name": "alterRow5"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          account_id as short,",
+				"          customer_id as short,",
+				"          account_type as string,",
+				"          balance as double",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> accountsCSV",
+				"source(output(",
+				"          customer_id as short,",
+				"          first_name as string,",
+				"          last_name as string,",
+				"          address as string,",
+				"          city as string,",
+				"          state as string,",
+				"          zip as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> customersCSV",
+				"source(output(",
+				"          payment_id as short,",
+				"          loan_id as short,",
+				"          payment_date as date,",
+				"          payment_amount as double",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> loanpaymentCSV",
+				"source(output(",
+				"          loan_id as short,",
+				"          customer_id as short,",
+				"          loan_amount as double,",
+				"          interest_rate as double,",
+				"          loan_term as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> loansCSV",
+				"source(output(",
+				"          transaction_id as short,",
+				"          account_id as short,",
+				"          transaction_date as date,",
+				"          transaction_amount as double,",
+				"          transaction_type as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> transactionsCSV",
+				"accountsCSV filter(!isNull(account_id)||!isNull(customer_id)) ~> removenull",
+				"removenull aggregate(groupBy(account_id,",
+				"          customer_id,",
+				"          account_type,",
+				"          balance),",
+				"     rank = first(account_id)) ~> removeduplicates",
+				"removeduplicates select(mapColumn(",
+				"          Account_id = account_id,",
+				"          Customer_id = customer_id,",
+				"          Account_type = account_type,",
+				"          Balance = balance",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"customersCSV filter(!isNull(customer_id)||!isNull(first_name)) ~> removenull2",
+				"removenull2 aggregate(groupBy(customer_id,",
+				"          first_name,",
+				"          last_name,",
+				"          address,",
+				"          city,",
+				"          state,",
+				"          zip),",
+				"     rank = first(customer_id)) ~> removeDuplicates2",
+				"removeDuplicates2 select(mapColumn(",
+				"          Customer_id = customer_id,",
+				"          First_name = first_name,",
+				"          Last_name = last_name,",
+				"          Address = address,",
+				"          City = city,",
+				"          State = state,",
+				"          Zip = zip",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select2",
+				"loanpaymentCSV filter(!isNull(payment_id)||!isNull(loan_id)) ~> removeNull3",
+				"removeNull3 aggregate(groupBy(payment_id,",
+				"          loan_id,",
+				"          payment_date,",
+				"          payment_amount),",
+				"     rank = first(payment_amount)) ~> removeDuplicates3",
+				"removeDuplicates3 select(mapColumn(",
+				"          Payment_id = payment_id,",
+				"          Loan_id = loan_id,",
+				"          Payment_date = payment_date,",
+				"          Payment_amount = payment_amount",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select3",
+				"loansCSV filter(!isNull(loan_id)||!isNull(customer_id)) ~> removeNull4",
+				"removeNull4 aggregate(groupBy(loan_id,",
+				"          customer_id,",
+				"          loan_amount,",
+				"          interest_rate,",
+				"          loan_term),",
+				"     rank = first(loan_id)) ~> removeDuplicates4",
+				"removeDuplicates4 select(mapColumn(",
+				"          Loan_id = loan_id,",
+				"          Customer_id = customer_id,",
+				"          Loan_amount = loan_amount,",
+				"          Interest_rate = interest_rate,",
+				"          Loan_term = loan_term",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select4",
+				"transactionsCSV filter(!isNull(transaction_id)||!isNull(account_id)) ~> removeNull5",
+				"removeNull5 aggregate(groupBy(transaction_id,",
+				"          account_id,",
+				"          transaction_date,",
+				"          transaction_amount,",
+				"          transaction_type),",
+				"     rank = first(account_id)) ~> removeDuplicates5",
+				"removeDuplicates5 select(mapColumn(",
+				"          Transaction_id = transaction_id,",
+				"          Account_id = account_id,",
+				"          Transaction_date = transaction_date,",
+				"          Transaction_amount = transaction_amount,",
+				"          Transaction_type = transaction_type",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select5",
+				"select1 alterRow(upsertIf(1==1)) ~> alterRow1",
+				"select2 alterRow(upsertIf(1==1)) ~> alterRow2",
+				"select3 alterRow(upsertIf(1==1)) ~> alterRow3",
+				"select4 alterRow(upsertIf(1==1)) ~> alterRow4",
+				"select5 alterRow(upsertIf(1==1)) ~> alterRow5",
+				"alterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Accounts',",
+				"     mergeSchema: false,",
+				"     autoCompact: false,",
+				"     optimizedWrite: false,",
+				"     vacuum: 0,",
+				"     deletable: false,",
+				"     insertable: false,",
+				"     updateable: false,",
+				"     upsertable: true,",
+				"     keys:['Account_id'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1) ~> sink1",
+				"alterRow2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Customers',",
+				"     mergeSchema: false,",
+				"     autoCompact: false,",
+				"     optimizedWrite: false,",
+				"     vacuum: 0,",
+				"     deletable: false,",
+				"     insertable: false,",
+				"     updateable: false,",
+				"     upsertable: true,",
+				"     keys:['Customer_id'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink2",
+				"alterRow3 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/LoanPayments',",
+				"     mergeSchema: false,",
+				"     autoCompact: false,",
+				"     optimizedWrite: false,",
+				"     vacuum: 0,",
+				"     deletable: false,",
+				"     insertable: false,",
+				"     updateable: false,",
+				"     upsertable: true,",
+				"     keys:['Payment_id'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink3",
+				"alterRow4 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Loan',",
+				"     mergeSchema: false,",
+				"     autoCompact: false,",
+				"     optimizedWrite: false,",
+				"     vacuum: 0,",
+				"     deletable: false,",
+				"     insertable: false,",
+				"     updateable: false,",
+				"     upsertable: true,",
+				"     keys:['Loan_id'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink4",
+				"alterRow5 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Transactions',",
+				"     mergeSchema: false,",
+				"     autoCompact: false,",
+				"     optimizedWrite: false,",
+				"     vacuum: 0,",
+				"     deletable: false,",
+				"     insertable: false,",
+				"     updateable: false,",
+				"     upsertable: true,",
+				"     keys:['Transaction_id'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink5"
+			]
+		}
+	}
+}

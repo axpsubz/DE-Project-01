@@ -1,0 +1,9 @@
+{
+	"name": "scdatafact001",
+	"location": "canadacentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "f17213c7-2ed8-40e7-9825-87049fd24628",
+		"tenantId": "d4010fcd-283e-4032-baa5-87a3f1b4cc33"
+	}
+}

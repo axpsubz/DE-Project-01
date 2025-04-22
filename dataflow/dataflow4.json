@@ -1,0 +1,198 @@
+{
+	"name": "dataflow4",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "loan"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "target"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "select1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "lookup1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "alterRow1"
+				},
+				{
+					"name": "union1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          Loan_id as short,",
+				"          Customer_id as short,",
+				"          Loan_amount as double,",
+				"          Interest_rate as double,",
+				"          Loan_term as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Loan') ~> loan",
+				"source(output(",
+				"          loan_id as integer,",
+				"          customer_id as integer,",
+				"          loan_amount as decimal(15,2),",
+				"          interest_rate as decimal(5,2),",
+				"          loan_term as integer,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          updateby as string,",
+				"          haskey as long,",
+				"          isactive as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'query',",
+				"     store: 'sqlserver',",
+				"     query: 'select loan_id,haskey from loan where isactive=1',",
+				"     isolationLevel: 'READ_UNCOMMITTED') ~> target",
+				"loan select(mapColumn(",
+				"          each(match(1==1),",
+				"               concat('src_',$$) = $$)",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 derive(src_haskey = crc32(uuid())) ~> derivedColumn1",
+				"derivedColumn1, target lookup(src_Loan_id == loan_id,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> lookup1",
+				"lookup1 split(isNull(loan_id),",
+				"     src_Loan_id==loan_id&&src_haskey!=haskey,",
+				"     disjoint: false) ~> split1@(insert, update)",
+				"union1 derive(src_createdby = 'dataflow',",
+				"          src_createdate = currentTimestamp(),",
+				"          src_updatedate = currentTimestamp(),",
+				"          src_updatedby = 'dataflow',",
+				"          src_isactive = 1) ~> derivedColumn2",
+				"split1@update derive(src_updatedate = currentTimestamp(),",
+				"          src_updatedby = 'dataflow-updated',",
+				"          src_isactive = 0) ~> derivedColumn3",
+				"derivedColumn3 alterRow(updateIf(1==1)) ~> alterRow1",
+				"split1@insert, split1@update union(byName: true)~> union1",
+				"alterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          loan_id as integer,",
+				"          customer_id as integer,",
+				"          loan_amount as decimal(15,2),",
+				"          interest_rate as decimal(5,2),",
+				"          loan_term as integer,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          updateby as string,",
+				"          haskey as long,",
+				"          isactive as integer",
+				"     ),",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'dbo',",
+				"     tableName: 'loan',",
+				"     insertable: false,",
+				"     updateable: false,",
+				"     deletable: false,",
+				"     upsertable: true,",
+				"     keys:['loan_id','haskey'],",
+				"     stagingSchemaName: '',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          loan_id = src_Loan_id,",
+				"          updatedate = src_updatedate,",
+				"          updateby = src_updatedby,",
+				"          isactive = src_isactive,",
+				"          haskey = src_haskey",
+				"     )) ~> sink1",
+				"derivedColumn2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          loan_id as integer,",
+				"          customer_id as integer,",
+				"          loan_amount as decimal(15,2),",
+				"          interest_rate as decimal(5,2),",
+				"          loan_term as integer,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          updateby as string,",
+				"          haskey as long,",
+				"          isactive as integer",
+				"     ),",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'dbo',",
+				"     tableName: 'loan',",
+				"     insertable: true,",
+				"     updateable: false,",
+				"     deletable: false,",
+				"     upsertable: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          loan_id = src_Loan_id,",
+				"          customer_id = src_Customer_id,",
+				"          loan_amount = src_Loan_amount,",
+				"          interest_rate = src_Interest_rate,",
+				"          loan_term = src_Loan_term,",
+				"          createdby = src_createdby,",
+				"          createdate = src_createdate,",
+				"          updatedate = src_updatedate,",
+				"          updateby = src_updatedby,",
+				"          haskey = src_haskey,",
+				"          isactive = src_isactive",
+				"     )) ~> sink2"
+			]
+		}
+	}
+}

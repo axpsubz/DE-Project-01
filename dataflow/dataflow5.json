@@ -1,0 +1,199 @@
+{
+	"name": "dataflow5",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "transactions"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "target"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureSqlDatabase1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "select1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "lookup1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "alterRow1"
+				},
+				{
+					"name": "union1"
+				},
+				{
+					"name": "derivedColumn3"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          Transaction_id as short,",
+				"          Account_id as short,",
+				"          Transaction_date as date,",
+				"          Transaction_amount as double,",
+				"          Transaction_type as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delta',",
+				"     fileSystem: 'edw',",
+				"     folderPath: 'silver/Transactions') ~> transactions",
+				"source(output(",
+				"          transaction_id as integer,",
+				"          account_id as integer,",
+				"          transaction_date as timestamp,",
+				"          transaction_amount as decimal(15,2),",
+				"          transaction_type as string,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          updateby as string,",
+				"          haskey as long,",
+				"          isactive as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'query',",
+				"     store: 'sqlserver',",
+				"     query: 'select transaction_id,haskey from transactions where isactive=1',",
+				"     isolationLevel: 'READ_UNCOMMITTED') ~> target",
+				"transactions select(mapColumn(",
+				"          each(match(1==1),",
+				"               concat('src_',$$) = $$)",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 derive(src_hashkey = crc32(uuid())) ~> derivedColumn1",
+				"derivedColumn1, target lookup(src_Transaction_id == transaction_id,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> lookup1",
+				"lookup1 split(isNull(transaction_id),",
+				"     src_Transaction_id==transaction_id&&src_hashkey!=haskey,",
+				"     disjoint: false) ~> split1@(insert, update)",
+				"split1@update derive(src_updatedby = 'dataflow-updated',",
+				"          src_updatedate = currentTimestamp(),",
+				"          src_isactive = 0) ~> derivedColumn2",
+				"derivedColumn2 alterRow(updateIf(1==1)) ~> alterRow1",
+				"split1@insert, split1@update union(byName: true)~> union1",
+				"union1 derive(src_createdby = 'dataflow',",
+				"          src_createdate = currentTimestamp(),",
+				"          src_updatedate = currentTimestamp(),",
+				"          src_updatedby = 'dataflow',",
+				"          src_isactive = 1) ~> derivedColumn3",
+				"alterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          transaction_id as integer,",
+				"          account_id as integer,",
+				"          transaction_date as timestamp,",
+				"          transaction_amount as decimal(15,2),",
+				"          transaction_type as string,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          updateby as string,",
+				"          haskey as long,",
+				"          isactive as integer",
+				"     ),",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'dbo',",
+				"     tableName: 'transactions',",
+				"     insertable: false,",
+				"     updateable: true,",
+				"     deletable: false,",
+				"     upsertable: false,",
+				"     keys:['transaction_id','haskey'],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          transaction_id = src_Transaction_id,",
+				"          account_id = src_Account_id,",
+				"          haskey = src_hashkey,",
+				"          updateby = src_updatedby,",
+				"          updatedate = src_updatedate,",
+				"          isactive = src_isactive",
+				"     )) ~> sink1",
+				"derivedColumn3 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          transaction_id as integer,",
+				"          account_id as integer,",
+				"          transaction_date as timestamp,",
+				"          transaction_amount as decimal(15,2),",
+				"          transaction_type as string,",
+				"          createdby as string,",
+				"          createdate as timestamp,",
+				"          updatedate as timestamp,",
+				"          updateby as string,",
+				"          haskey as long,",
+				"          isactive as integer",
+				"     ),",
+				"     format: 'table',",
+				"     store: 'sqlserver',",
+				"     schemaName: 'dbo',",
+				"     tableName: 'transactions',",
+				"     insertable: true,",
+				"     updateable: false,",
+				"     deletable: false,",
+				"     upsertable: false,",
+				"     stagingSchemaName: '',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          transaction_id = src_Transaction_id,",
+				"          account_id = src_Account_id,",
+				"          transaction_date = src_Transaction_date,",
+				"          transaction_amount = src_Transaction_amount,",
+				"          transaction_type = src_Transaction_type,",
+				"          createdby = src_createdby,",
+				"          createdate = src_createdate,",
+				"          updatedate = src_updatedate,",
+				"          updateby = src_updatedby,",
+				"          haskey = src_hashkey,",
+				"          isactive = src_isactive",
+				"     )) ~> sink2"
+			]
+		}
+	}
+}
